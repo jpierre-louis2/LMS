@@ -83,12 +83,14 @@ public class BorrowerSystem {
 			brDAL.printBranches();
 			System.out.println(max + ". Quit to previous");
 			input = in.getInput(max, 1);
-			this.branch = branches.get(input - 1).getBranchId();
-			if (option == 1 && input != max) {
-				borrowBook();
-			}
-			if (option == 2 && input != max) {
-				returnBook();
+			if (input != max) {
+				this.branch = branches.get(input - 1).getBranchId();
+				if (option == 1 && input != max) {
+					borrowBook();
+				}
+				else if (option == 2 && input != max) {
+					returnBook();
+				}
 			}
 		}
 		catch(Exception e) {
