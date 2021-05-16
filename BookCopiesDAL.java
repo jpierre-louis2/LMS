@@ -1,88 +1,132 @@
 //Author: Jameson Pierre-Louis
 //This is a Data Access Level which processes information for BookCopiesDAO (Data Access Object)
 package com.ss.apr.jb.DAL;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.ArrayList;
-import com.ss.apr.jb.BLL.UtilityFunctions;
 import com.ss.apr.jb.DAO.*;
-import com.ss.apr.jb.tables.Author;
 import com.ss.apr.jb.tables.Book;
 import com.ss.apr.jb.tables.BookCopies;
 
 public class BookCopiesDAL {
 	
-	UtilityFunctions u = new UtilityFunctions();
-	AuthorDAO au = new AuthorDAO();
-	BookCopiesDAO bc = new BookCopiesDAO();
-	BookDAO bk = new BookDAO();
-	BookLoansDAO bl = new BookLoansDAO();
-	BorrowerDAO br = new BorrowerDAO();
-	BranchDAO bh = new BranchDAO();
-	PublisherDAO pu = new PublisherDAO();
+	Util u = new Util();
 	
-	//Returns the name of an Author
-	private String getAuthorName(int id) {
-		Author author = au.getAuthor(id);
-		return author.getName();
-	}
-	//Returns a specific book
-	private Book getBook(int id){
-		Book book = bk.getBook(id);
-		return book;
-	}
-	//Prints out all available book copies for a Branch
-	public void printAvailableBooks(int branchId) {
+	
+	//Prints out all available Books and Copy amounts specified by Branch Id
+	public void printAvailableBooks(int branchId) throws SQLException{
 		ArrayList<Book> books = getAvailableBooks(branchId);
-		ArrayList<BookCopies> copies = bc.getAvailableCopy(branchId);
+		ArrayList<BookCopies> copies = getAvailableBookCopies(branchId);
+		BookDAL bDAL = new BookDAL();
 		int count = 1;
 		System.out.println("\nBooks Available for Checkout:");
 		for(Book book : books) {
 			int amount = copies.get(count-1).getCopies();
-			System.out.println(count + ". " + book.getTitle() + " by " + getAuthorName(book.getAuthId()) + " (" + amount + ")");
+			System.out.println(count + ". " + book.getTitle() + " by " + bDAL.getAuthorName(book.getAuthId()) + " (" + amount + ")");
 			++count;
 		}
 	}
-	//Returns an list of all available books at a Branch
-	public ArrayList<Book> getAvailableBooks(int branchId){
-		ArrayList<Book> books = new ArrayList<Book>();
-		ArrayList<BookCopies> availableBooks = bc.getAvailableCopy(branchId);
-		
-		for(BookCopies b : availableBooks) {
-			//Checks for more than 1 book at branch
-			if (b.getCopies() != 0) {
-				books.add(bk.getBook(b.getBookId()));
+	//Returns an ArrayList of BookCopies at a branch for Books specified by Branch Id
+	public ArrayList<BookCopies> getAvailableBookCopies(int branchId) throws SQLException{
+		ArrayList<BookCopies> availableBooks = null;
+		Connection conn = null;
+		try {
+			conn = u.getConnection();
+			BookCopiesDAO bc = new BookCopiesDAO(conn);
+			availableBooks = bc.getAllAvailableCopies(branchId);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}finally {
+			if(conn!=null) {
+				conn.close();
 			}
 		}
 		
+		return availableBooks;
+	}
+	//Returns an ArrayList of all books available at a Branch specified by Branch Id
+	public ArrayList<Book> getAvailableBooks(int branchId) throws SQLException{
+		ArrayList<Book> books = new ArrayList<Book>();
+		ArrayList<BookCopies> availableBooks = getAvailableBookCopies(branchId);
+		BookDAL bDAL = new BookDAL();
+		for(BookCopies b : availableBooks) {
+			//Checks for more than 1 book at branch
+			if (b.getCopies() != 0) {
+				books.add(bDAL.getBook(b.getBookId()));
+			}
+		}
 		return books;
 	}
 	//Returns the amount of book copies in a branch
-	public int findBookStatus(int bookId, int branchId) {
-		BookCopies b = bc.getCopy(bookId, branchId);
+	public int findBookStatus(int bookId, int branchId) throws SQLException{
+		BookCopies b = null;
+		Connection conn = null;
+		try {
+			conn = u.getConnection();
+			BookCopiesDAO bc = new BookCopiesDAO(conn);
+			b = bc.getCopies(bookId, branchId);
+		} catch (Exception e) {
+			//No Print condition
+		}finally {
+			if(conn!=null) {
+				conn.close();
+			}
+		}
+		
 		int num = 0;
 		try { num = b.getCopies(); }
 		catch(NullPointerException e) {}
 		return num;
 	}
-	//Orders new books for a Branch
-	public void orderBook(int bookId, int branchId, int num) {
+	//Orders new books for a Branch specified by Book Id, Branch Id, and amount to order
+	public void orderBook(int bookId, int branchId, int num) throws SQLException{
 		BookCopies b = null;
-		Book book = getBook(bookId);
-		//Update book total
-		try {
-			int total = findBookStatus(bookId, branchId);
-			if(total > 0) {
-				b = new BookCopies(bookId, branchId, (total + num));
-				bc.updateCopies(b);
+		Connection conn = null;
+		BookDAL bDAL = new BookDAL();
+		Book book = bDAL.getBook(bookId);
+		int total = findBookStatus(bookId, branchId);
+		
+		//Checks whether to add a new Entry into Book Copies or Edit an existing one
+		if(total > 0) {
+			b = new BookCopies(bookId, branchId, (total + num));
+			try {
+				conn = u.getConnection();
+				BookCopiesDAO bc = new BookCopiesDAO(conn);
+				bc.updateBookCopies(b);
+				conn.commit();
+				System.out.print("\n" + num + " Copies of '" + book.getTitle() + "' Have been ordered");
+				printAvailableBooks(branchId);
 			}
-			else {
-				System.out.println("Adding new Book to branch");
-				b = new BookCopies(bookId, branchId, num);
-				bc.addCopies(b);
+			catch(Exception e) {
+				e.printStackTrace();
+				conn.rollback();
+				System.out.println("Books could not be ordered!");
+			}finally {
+				if (conn != null) {
+					conn.close();
+				}
 			}
 		}
-		catch(NullPointerException e){}
-		System.out.print("\n" + num + " Copies of '" + book.getTitle() + "' Have been ordered");
-		printAvailableBooks(branchId);
+		else {
+			System.out.println("Adding new Book to branch");
+			b = new BookCopies(bookId, branchId, num);
+			try {
+				conn = u.getConnection();
+				BookCopiesDAO bc = new BookCopiesDAO(conn);
+				bc.addBookCopies(b);
+				conn.commit();
+				System.out.print("\n" + num + " Copies of '" + book.getTitle() + "' Have been ordered");
+				printAvailableBooks(branchId);
+			}catch(Exception e) {
+				e.printStackTrace();
+				conn.rollback();
+				System.out.println("Books could not be ordered!");
+			}finally {
+				if (conn != null) {
+					conn.close();
+				}
+			}
+		}
 	}
 
 }

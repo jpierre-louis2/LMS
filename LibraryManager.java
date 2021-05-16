@@ -5,12 +5,13 @@ public class LibraryManager {
 
 	//Pulls up Main Menu prompt
 	public static int mainMenu() {
-		UtilityFunctions u = new UtilityFunctions();
+		InputFunctions in = new InputFunctions();
 		System.out.println("Welcome to the GCIT Library Management System. Which category of user are you?");
 		System.out.println("\n1. Librarian \n2. Administrator \n3. Borrower");
 		System.out.println("(Enter 0 to Quit)");
 		
-		int input = u.getInput(3, 0);
+		
+		int input = in.getInput(3, 0);
 		return input;
 	}
 	
@@ -19,10 +20,9 @@ public class LibraryManager {
 
 		LibrarianSystem l = new LibrarianSystem();
 		BorrowerSystem b = new BorrowerSystem();
-		AdministratorSystem a = new AdministratorSystem();
+		AdministratorMenu a = new AdministratorMenu();
 		int input = -1;
 
-		
 		while (input != 0) {
 			input = mainMenu();
 			switch(input) {

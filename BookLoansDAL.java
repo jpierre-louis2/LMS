@@ -1,89 +1,161 @@
 //Author: Jameson Pierre-Louis
 //This is a Data Access Level which processes information for BookLoansDAO (Data Access Object)
 package com.ss.apr.jb.DAL;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
-import com.ss.apr.jb.BLL.UtilityFunctions;
 import com.ss.apr.jb.DAO.*;
 import com.ss.apr.jb.tables.*;
 
 public class BookLoansDAL {
 	
-	UtilityFunctions u = new UtilityFunctions();
-	AuthorDAO au = new AuthorDAO();
-	BookCopiesDAO bc = new BookCopiesDAO();
-	BookDAO bk = new BookDAO();
-	BookLoansDAO bl = new BookLoansDAO();
-	BorrowerDAO br = new BorrowerDAO();
-	BranchDAO bh = new BranchDAO();
-	PublisherDAO pu = new PublisherDAO();
+	Util u = new Util();
 	
-	//Returns the name of an Author
-	public String getAuthorName(int id) {
-		Author author = au.getAuthor(id);
-		return author.getName();
+	//Returns an ArrayList of all BookCopies available (More than 1 copy) for a Branch specified by Branch Id
+	public ArrayList<BookCopies> getAvailableBookCopies(int branchId) throws SQLException{
+		ArrayList<BookCopies> availableBooks = null;
+		Connection conn = null;
+		try {
+			conn = u.getConnection();
+			BookCopiesDAO bc = new BookCopiesDAO(conn);
+			availableBooks = bc.getAllAvailableCopies(branchId);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}finally {
+			if(conn!=null) {
+				conn.close();
+			}
+		}
+		
+		return availableBooks;
 	}
+	
 	//Prints out all available book copies for a branch
-	public void printAvailableBooks(int branchId) {
+	public void printAvailableBooks(int branchId) throws SQLException{
 		ArrayList<Book> books = getAvailableBooks(branchId);
-		ArrayList<BookCopies> copies = bc.getAvailableCopy(branchId);
+		ArrayList<BookCopies> copies = getAvailableBookCopies(branchId);
+		BookDAL bDAL = new BookDAL();
 		int count = 1;
 		System.out.println("\nBooks Available for Checkout:");
 		for(Book book : books) {
 			int amount = copies.get(count-1).getCopies();
-			System.out.println(count + ". " + book.getTitle() + " by " + getAuthorName(book.getAuthId()) + " (" + amount + ")");
+			System.out.println(count + ". " + book.getTitle() + " by " + bDAL.getAuthorName(book.getAuthId()) + " (" + amount + ")");
 			++count;
 		}
 	}
-	//Returns an list of all books available for a Branch
-	public ArrayList<Book> getAvailableBooks(int branchId){
+	//Returns an ArrayList of all Books available (More than 1 copy) for a Branch specified by Branch Id
+	public ArrayList<Book> getAvailableBooks(int branchId) throws SQLException{
 		ArrayList<Book> books = new ArrayList<Book>();
-		ArrayList<BookCopies> availableBooks = bc.getAvailableCopy(branchId);
-		
+		ArrayList<BookCopies> availableBooks = getAvailableBookCopies(branchId);
+		BookDAL bDAL = new BookDAL();
 		for(BookCopies b : availableBooks) {
 			//Checks for more than 1 book at branch
 			if (b.getCopies() != 0) {
-				books.add(bk.getBook(b.getBookId()));
+				books.add(bDAL.getBook(b.getBookId()));
 			}
 		}
-		
 		return books;
 	}
-	//Prints out all books loaned to a user at a specific Branch
-	public void printLoanedBooks(int branchId, int cardNo) {
+	//Prints out all Books Loaned to a Borrower specified by Branch Id and Borrower Card Number/Id
+	public void printLoanedBooks(int branchId, int cardNo) throws SQLException{
 		ArrayList<Book> books = getBorrowedBooks(branchId, cardNo);
+		BookDAL bDAL = new BookDAL();
 		int count = 1;
 		System.out.println("\nBooks Available for Return:");
 		try {
 			for(Book book : books) {
-				System.out.println(count + ". " + book.getTitle() + " by " + getAuthorName(book.getAuthId()));
+				System.out.println(count + ". " + book.getTitle() + " by " + bDAL.getAuthorName(book.getAuthId()));
 				++count;
 			}
 		}catch(Exception e){
 			System.out.println("No books for return!");
 		}
 	}	
-	//Returns an list of all books loaned books at a specific Branch
-	public ArrayList<Book> getBorrowedBooks(int branchId, int cardNo){
+	//Returns an ArrayList of all Books loaned to a Borrower from a Library Branch, specified by Branch Id and Borrower Card Number/Id
+	public ArrayList<Book> getBorrowedBooks(int branchId, int cardNo) throws SQLException{
 		ArrayList<Book> loanedBooks = new ArrayList<Book>();
-		ArrayList<BookLoans> loaned = bl.getBorrowerLoans(branchId, cardNo);
+		ArrayList<BookLoans> loaned = getBorrowerLoans(branchId, cardNo);
+		BookDAL bDAL = new BookDAL();
 		for(BookLoans b : loaned) {
-			loanedBooks.add(bk.getBook(b.getBookId()));
+			loanedBooks.add(bDAL.getBook(b.getBookId()));
 		}
 		return loanedBooks;
 	}
-	//Returns a loan based on book, branch, and user
-	public BookLoans getBookLoan(int bookId, int branchId, int cardNo) {
-		BookLoans loan = bl.getBookLoan(bookId, branchId, cardNo);
+	//Returns a BookLoan based on Book Id, Branch Id, and Borrower Card Number/Id
+	public BookLoans getBookLoan(int bookId, int branchId, int cardNo) throws SQLException{
+		Connection conn = null;
+		BookLoans loan = null;
+		try {
+			conn = u.getConnection();
+			BookLoansDAO bl = new BookLoansDAO(conn);
+			loan = bl.getLoan(bookId, branchId, cardNo);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}finally {
+			if(conn!=null) {
+				conn.close();
+			}
+		}
 		return loan;
 	}
-	//Updates a loan's information
-	public void updateLoan(BookLoans loan) {
-		bl.updateLoan(loan);
+	//Returns an ArrayList of all BookLoans
+	public ArrayList<BookLoans> getBookLoans() throws SQLException{
+		Connection conn = null;
+		ArrayList<BookLoans> loans = null;
+		try {
+			conn = u.getConnection();
+			BookLoansDAO bl = new BookLoansDAO(conn);
+			loans = bl.getAllLoans();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}finally {
+			if(conn!=null) {
+				conn.close();
+			}
+		}
+		return loans;
 	}
-	//Loans out a book to desired user at desired branch
-	public void loanBook(int bookId, int branchId, int cardNo) {
+	//Returns an ArrayList of BorrowerLoans for a Borrower from a Branch specified by Branch Id and Borrower Card Number/Id
+	public ArrayList<BookLoans> getBorrowerLoans(int branchId, int cardNo) throws SQLException{
+		Connection conn = null;
+		ArrayList<BookLoans> loans = null;
+		try {
+			conn = u.getConnection();
+			BookLoansDAO bl = new BookLoansDAO(conn);
+			loans = bl.getBorrowerLoans(branchId, cardNo);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}finally {
+			if(conn!=null) {
+				conn.close();
+			}
+		}
+		return loans;
+	}
+	//Updates a BookLoan's information
+	public void updateLoan(BookLoans loan) throws SQLException{
+		Connection conn = null;
+		try {
+			conn = u.getConnection();
+			BookLoansDAO bl = new BookLoansDAO(conn);
+			bl.updateLoan(loan);
+			conn.commit();
+		}
+		catch(Exception e) {
+			e.printStackTrace();
+			conn.rollback();
+		}finally {
+			if (conn != null) {
+				conn.close();
+			}
+		}
+	}
+	//Loans out a Book to a Borrower specified by Book Id, Branch Id, and Borrower Card Number/Id
+	//Removes a Copy from the branch and updates BookCopies
+	//Adds a new Book Loan to table
+	public void loanBook(int bookId, int branchId, int cardNo) throws SQLException{
 		Calendar calendar = Calendar.getInstance();
 		Date out = calendar.getTime();
 		calendar.add(Calendar.DAY_OF_YEAR, 7);
@@ -95,20 +167,36 @@ public class BookLoansDAL {
 			System.out.println("Error: Loan already exists!");
 		}
 		else {
-			bl.addLoan(loan);
 			int total = findBookStatus(bookId, branchId);
 			if (total != 0) {
 				BookCopies b = new BookCopies(bookId, branchId, (total - 1));
-				bc.updateCopies(b);
-				System.out.println("Book Successfully checked out! " + out);
-				System.out.println("This book is due back: " + due);
-				printAvailableBooks(branchId);
+				Connection conn = null;
+				try {
+					conn = u.getConnection();
+					BookCopiesDAO bc = new BookCopiesDAO(conn);
+					BookLoansDAO bl = new BookLoansDAO(conn);
+					bc.updateBookCopies(b);
+					bl.addLoan(loan);
+					conn.commit();
+					System.out.println("Book Successfully checked out! " + out);
+					System.out.println("This book is due back: " + due);
+					printAvailableBooks(branchId);
+				}
+				catch(Exception e) {
+					e.printStackTrace();
+					conn.rollback();
+					System.out.println("Book Could not be Checked Out!");
+				}finally {
+					if (conn != null) {
+						conn.close();
+					}
+				}
 			}
 		}
 	}
 	//Checks to see if a loan already exists for a user, for a book at a specific branch, so no duplicates
-	public boolean loanStatus(BookLoans test) {
-		ArrayList <BookLoans> loans = bl.getBookLoans();
+	public boolean loanStatus(BookLoans test) throws SQLException{
+		ArrayList <BookLoans> loans = getBookLoans();
 		for (BookLoans loan : loans) {
 			if(test.getBookId() == loan.getBookId()) {
 				if(test.getBranchId() == loan.getBranchId()) {
@@ -120,22 +208,49 @@ public class BookLoansDAL {
 			
 		return false;
 	}
-	//Returns a book to library branch for a user
-	public void returnBook(int bookId, int branchId, int cardNo) {
-		System.out.println("Returning Book!");
-		//Get total amount of book copies at the branch
+	//Returns a book to Library Branch specified by Book Id, Branch Id and Borrower Card Number/Id
+	//Adds a Book Copy to Branch and updates Book Copies
+	//Deletes the Loan Entry from Loan Table
+	public String returnBook(int bookId, int branchId, int cardNo) throws SQLException{
 		int total = findBookStatus(bookId, branchId);
-		//Update the amount of book copies by 1
 		BookCopies b = new BookCopies(bookId, branchId, (total + 1));
-		bc.updateCopies(b);
-		//Remove the loan entry
-		bl.deleteLoan(bookId, branchId, cardNo);
-	}
-	//Returns the amount of book copies in a branch
-	public int findBookStatus(int bookId, int branchId) {
-		BookCopies b = bc.getCopy(bookId, branchId);
-		int num = 0;
+		Connection conn = null;
+		try {
+			conn = u.getConnection();
+			BookCopiesDAO bc = new BookCopiesDAO(conn);
+			BookLoansDAO bl = new BookLoansDAO(conn);
+			bc.updateBookCopies(b);
+			bl.deleteLoan(bookId, branchId, cardNo);
+			conn.commit();
+			return "\nBook Successfully Returned!";
+		}
+		catch(Exception e) {
+			e.printStackTrace();
+			conn.rollback();
+			return "\nBook could not be Returned!";
+		}finally {
+			if (conn != null) {
+				conn.close();
+			}
+		}
 		
+	}
+	//Returns the amount of BookCopies for a Branch specified by Book Id and Branch Id
+	public int findBookStatus(int bookId, int branchId) throws SQLException{
+		BookCopies b = null;
+		Connection conn = null;
+		try {
+			conn = u.getConnection();
+			BookCopiesDAO bc = new BookCopiesDAO(conn);
+			b= bc.getCopies(bookId, branchId);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}finally {
+			if(conn!=null) {
+				conn.close();
+			}
+		}
+		int num = 0;
 		try { 
 			num = b.getCopies(); 
 		}

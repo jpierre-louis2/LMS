@@ -20,14 +20,12 @@ public class Branch {
 	public void setBranchId(int branchId) {
 		this.branchId = branchId;
 	}
-	
 	public String getBranchName() {
 		return branchName;
 	}
 	public void setBranchName(String branchName) {
 		this.branchName = branchName;
 	}
-	
 	public String getBranchAddress() {
 		return branchAddress;
 	}

@@ -2,318 +2,57 @@
 //This is a Data Access Object which pulls information from the 'book_copies' table in the Library Database
 package com.ss.apr.jb.DAO;
 import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import com.ss.apr.jb.tables.BookCopies;
 
 
-public class BookCopiesDAO {
+public class BookCopiesDAO extends BaseDAO<BookCopies>{
 	
-	//Returns the amount of copies for a specific book at a specific branch
-	public BookCopies getCopy(int bookId, int branchId) {
-		
-		BookCopies copies = null;
-		Connection conn = null;
-		PreparedStatement pstmt = null;
-		
-		try {		
-			//Step 1: Open a connection
-			//Inputs are Database URL, Username and Password
-			conn = DriverManager.getConnection("jdbc:mysql://localhost/library", "root", "root");
-			
-			//Step 4: Execute a query
-			pstmt = conn.prepareStatement("SELECT noOfCopies FROM tbl_book_copies WHERE bookId=? AND branchId=?");
-			pstmt.setInt(1, bookId);
-			pstmt.setInt(2, branchId);
-			//Result set is the output of your Query statement
-			ResultSet rs = pstmt.executeQuery();
-			
-			if(rs.next()) {
-				//Extract data from result set
-				int num = rs.getInt("noOfCopies");
-				copies = new BookCopies(bookId, branchId, num);
-			}
-			//Step 6: Clean-up environment
-			pstmt.close();
-			rs.close();
-			conn.close();
-		}
-		catch(SQLException se) {
-			//Handle errors for JDBC
-			se.printStackTrace();
-		}
-		catch(Exception e) {
-			//Handle errors for Class.forName
-			e.printStackTrace();
-		}
-		finally{
-			//finally block used to close resources
-			try {
-				if(pstmt != null)
-					pstmt.close();
-			}
-			catch(SQLException se2) {}
-			try {
-				if(conn != null)
-					conn.close();
-			}
-			catch(SQLException se) {
-				se.printStackTrace();
-			}
-		}
-		return copies;
+	//Supports Database Connection
+	public BookCopiesDAO(Connection conn) {
+		super(conn);
 	}
-	
-	
-	//Returns a list of all book copies for all books a specified branch
-	public ArrayList<BookCopies> getAvailableCopy(int branchId) {
-		
-		ArrayList<BookCopies> available = new ArrayList<BookCopies>();
-		Connection conn = null;
-		PreparedStatement pstmt = null;
-		
-		try {		
-			//Step 1: Open a connection (Inputs are Database URL, Username and Password)
-			conn = DriverManager.getConnection("jdbc:mysql://localhost/library", "root", "root");
-			
-			//Step 2: Execute a query
-			pstmt = conn.prepareStatement("SELECT bookId, noOfCopies FROM tbl_book_copies WHERE branchId=? AND noOfCopies!=0");
-			pstmt.setInt(1, branchId);
-			ResultSet rs = pstmt.executeQuery();
-			
-			//Step 3: Extract data from result set
-			while(rs.next()) {
-				int num = rs.getInt("noOfCopies");
-				int bookId = rs.getInt("bookId");
-				BookCopies copies = new BookCopies(bookId, branchId, num);
-				available.add(copies);
-			}
-			//Step 4: Clean-up environment
-			pstmt.close();
-			rs.close();
-			conn.close();
-		}
-		catch(SQLException se) {
-			//Handle errors for JDBC
-			se.printStackTrace();
-		}
-		catch(Exception e) {
-			e.printStackTrace();
-		}
-		finally{
-			//finally block used to close resources
-			try {
-				if(pstmt != null)
-					pstmt.close();
-			}
-			catch(SQLException se2) {}
-			try {
-				if(conn != null)
-					conn.close();
-			}
-			catch(SQLException se) {
-				se.printStackTrace();
-			}
-		}
-		return available;
-	}
-	
-	
-	//Returns a list of all book copies in database
-	public ArrayList<BookCopies> getAllCopies() {
-		
+	//Returns an ArrayList of BookCopies based on the Select Statement sent
+	public ArrayList<BookCopies> extractData(ResultSet rs) throws ClassNotFoundException, SQLException{
 		ArrayList<BookCopies> copies = new ArrayList<BookCopies>();
-		Connection conn = null;
-		Statement stmt = null;
-		
-		try {		
-			//Step 1: Open a connection (Inputs are Database URL, Username and Password)
-			conn = DriverManager.getConnection("jdbc:mysql://localhost/library", "root", "root");
-			
-			//Step 2: Execute a query
-			stmt = conn.createStatement();
-			String sql = "SELECT bookId, branchId, noOfCopies FROM tbl_book_copies";
-			ResultSet rs = stmt.executeQuery(sql);
-			
-			//Step 3: Extract data from result set
-			while(rs.next()) {
-
-				int bookId = rs.getInt("bookId");
-				int branchId = rs.getInt("branchId");
-				int num = rs.getInt("noOfCopies");
-				BookCopies copy = new BookCopies(bookId, branchId, num);
-				copies.add(copy);
-			}
-			//Step 4: Clean-up environment
-			rs.close();
-			stmt.close();
-			conn.close();
+		while(rs.next()) {
+			int bookId = rs.getInt("bookId");
+			int branchId = rs.getInt("branchId");
+			int num = rs.getInt("noOfCopies");
+			BookCopies copy = new BookCopies(bookId, branchId, num);
+			copies.add(copy);
 		}
-		catch(SQLException se) {
-			//Handle errors for JDBC
-			se.printStackTrace();
-		}
-		catch(Exception e) {
-			e.printStackTrace();
-		}
-		finally{
-			//finally block used to close resources
-			try {
-				if(stmt != null)
-					stmt.close();
-			}
-			catch(SQLException se2) {}
-			try {
-				if(conn != null)
-					conn.close();
-			}
-			catch(SQLException se) {
-				se.printStackTrace();
-			}
-		}
-				
 		return copies;
 	}
-	
-	
-	//Adds books to a branch in Database
-	public void addCopies(BookCopies copies) {
-		Connection conn = null;
-		PreparedStatement pstmt = null;
-		
-		try {		
-			//Step 1: Open a connection (Inputs are Database URL, Username and Password)
-			conn = DriverManager.getConnection("jdbc:mysql://localhost/library", "root", "root");
-			
-			//Step 2: Execute a statement
-			pstmt = conn.prepareStatement("INSERT INTO tbl_book_copies (bookId, branchId, noOfCopies) VALUES (?, ?, ?)");
-			pstmt.setInt(3, copies.getCopies());
-			pstmt.setInt(1, copies.getBookId());
-			pstmt.setInt(2, copies.getBranchId());
-			pstmt.executeUpdate();
-			
-			//Step 3: Clean-up environment
-			pstmt.close();
-			conn.close();
-		}
-		catch(SQLException se) {
-			//Handle errors for JDBC
-			se.printStackTrace();
-		}
-		catch(Exception e) {
-			e.printStackTrace();
-		}
-		finally{
-			//finally block used to close resources
-			try {
-				if(pstmt != null)
-					pstmt.close();
-			}
-			catch(SQLException se2) {}
-			try {
-				if(conn != null)
-					conn.close();
-			}
-			catch(SQLException se) {
-				se.printStackTrace();
-			}
-		}
+	//Returns an ArrayList of Books Copies available for a specified Library Branch
+	public ArrayList<BookCopies>getAllAvailableCopies(int branchId) throws ClassNotFoundException, SQLException{
+		ArrayList<BookCopies> copies = read("SELECT bookId, branchId, noOfCopies FROM tbl_book_copies WHERE branchId=? AND noOfCopies!=0", new Object[] {branchId});
+		return copies;
 	}
-	
-	
-	//Updates amount of copies in database
-	public void updateCopies(BookCopies copies) {
-		Connection conn = null;
-		PreparedStatement pstmt = null;
-		
-		try {		
-			//Step 1: Open a connection (Inputs are Database URL, Username and Password)
-			conn = DriverManager.getConnection("jdbc:mysql://localhost/library", "root", "root");
-			
-			//Step 2: Execute a query
-			pstmt = conn.prepareStatement("UPDATE tbl_book_copies SET noOfCopies=? WHERE branchId=? AND bookId=?");
-			pstmt.setInt(1, copies.getCopies());
-			pstmt.setInt(2, copies.getBranchId());
-			pstmt.setInt(3, copies.getBookId());
-			pstmt.executeUpdate();
-			
-			//Step 3: Clean-up environment
-			pstmt.close();
-			conn.close();
-		}
-		catch(SQLException se) {
-			//Handle errors for JDBC
-			se.printStackTrace();
-		}
-		catch(Exception e) {
-			e.printStackTrace();
-		}
-		finally{
-			//finally block used to close resources
-			try {
-				if(pstmt != null)
-					pstmt.close();
-			}
-			catch(SQLException se2) {}
-			try {
-				if(conn != null)
-					conn.close();
-			}
-			catch(SQLException se) {
-				se.printStackTrace();
-			}
-		}
+	//Returns an ArrayList of the copies for a specified book at a specified Library Branch
+	public BookCopies getCopies(int bookId, int branchId) throws ClassNotFoundException, SQLException{
+		ArrayList<BookCopies> copies = read("SELECT bookId, branchId, noOfCopies FROM tbl_book_copies WHERE bookId=? AND branchId=?", new Object[] {bookId, branchId});
+		return copies.get(0);
 	}
-	
-	
-	
-	//Deletes a copy of a book from a branch specified by ID
-	public void deleteBookCopies(int branchId, int bookId) {
-	
-		Connection conn = null;
-		PreparedStatement pstmt = null;
-		
-		try {		
-			//Step 1: Open a connection (Inputs are Database URL, Username and Password)
-			conn = DriverManager.getConnection("jdbc:mysql://localhost/library", "root", "root");
-			
-			//Step 2: Execute a query
-			pstmt = conn.prepareStatement("DELETE FROM tbl_book_copies WHERE branchId=? AND bookId=?");
-			pstmt.setInt(1, branchId);
-			pstmt.setInt(2, bookId);
-			pstmt.executeUpdate();
-			
-			//Step 3: Clean-up Environment
-			pstmt.close();
-			conn.close();
-		}
-		catch(SQLException se) {
-			//Handle errors for JDBC
-			se.printStackTrace();
-		}
-		catch(Exception e) {
-			e.printStackTrace();
-		}
-		finally{
-			//finally block used to close resources
-			try {
-				if(pstmt != null)
-					pstmt.close();
-			}
-			catch(SQLException se2) {}
-			try {
-				if(conn != null)
-					conn.close();
-			}
-			catch(SQLException se) {
-				se.printStackTrace();
-			}
-		}
+	//Returns an ArrayList of all BookCopies
+	public ArrayList<BookCopies>getAllCopies() throws ClassNotFoundException, SQLException{
+		ArrayList<BookCopies> copies = read("SELECT bookId, branchId, noOfCopies FROM tbl_book_copies", null);
+		return copies;
 	}
-	
+	//Inserts a new value into BookCopies Table
+	public void addBookCopies(BookCopies copies) throws ClassNotFoundException, SQLException{
+		save("INSERT INTO tbl_book_copies (bookId, branchId, noOfCopies) VALUES (?, ?, ?)", new Object[] {copies.getBookId(), copies.getBranchId(), copies.getCopies()});
+	}
+	//Updates BookCopies at a specified Branch for a specified book in BookCopies Table
+	public void updateBookCopies(BookCopies copies) throws ClassNotFoundException, SQLException{
+		save("UPDATE tbl_book_copies SET noOfCopies=? WHERE branchId=? AND bookId=?", new Object[] {copies.getCopies(), copies.getBranchId(), copies.getBookId()});
+	}
+	//Deletes BookCopies at a specified Branch for a specified book in BookCopies Table
+	public void deleteBookCopies(int branchId, int bookId) throws ClassNotFoundException, SQLException{
+		save("DELETE FROM tbl_book_copies WHERE branchId=? AND bookId=?", new Object[] {branchId, bookId});
+	}
+
 
 }
